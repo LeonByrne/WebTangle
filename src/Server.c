@@ -1,6 +1,10 @@
 #include "Server.h"
 
 #include <stdbool.h>
+#include <malloc.h>
+
+#include <unistd.h>
+#include <poll.h>
 
 int server_init(Server *server, const int port, const int queueSize)
 {
@@ -31,6 +35,10 @@ int server_init(Server *server, const int port, const int queueSize)
     return -4;
   }
 
+  server->running = false;
+  server->numThreads = 4;  // TODO make default or accept arguement
+  server->threadPool = malloc(sizeof(pthread_t) * server->numThreads);
+
   return 0;
 }
 
@@ -39,27 +47,84 @@ int server_init(Server *server, const int port, const int queueSize)
  * 
  * @param server 
  */
-void start_server(Server *server)
+int start_server(Server *server)
 {
-  // TODO make a number of threads and start them
+  server->running = true;
+
+  for(int i = 0; i < server->numThreads; i++)
+  {
+    pthread_create(&server->threadPool[i], NULL, (void * (*)(void *)) worker_thread, server);
+  }
+
+  return 0;
 }
 
-void worker_thread(Server *server)
+int pause_server(Server  *server)
+{
+  return 0;
+}
+
+int resume_server(Server *server)
+{
+  return 0;
+}
+
+int stop_server(Server *server)
+{
+  return 0;
+}
+
+void * worker_thread(Server *server)
 {
   char buffer[4096];
+  struct pollfd pfd;
+  pfd.fd = server->server_fd;
+  pfd.events = POLLIN;
 
-  while(server->running)
+  while(true)
   {
     // Try to get the mutex
     pthread_mutex_lock(&server->socketLock);
 
-    // Recieve the data
-    int client_fd = accept(server->server_fd, NULL, NULL);
-    recv(client_fd, buffer, 4096, 0);
+    // Check must be here for speedy pause/shutdown
+    // As a loop condition, each thread would have to try recv
+    if(!server->running)
+    {
+      pthread_mutex_unlock(&server->socketLock);
+      break;
+    }
+
+    // Poll for 100ms
+    int p = poll(&pfd, 1, 100);
+    if(p < 0)
+    {
+      // TODO log an error
+      pthread_mutex_unlock(&server->socketLock);
+      continue;
+    } else if(p == 0)
+    {
+      // Timeout ocurred
+      pthread_mutex_unlock(&server->socketLock);
+      continue;
+    } else if(pfd.revents & POLLIN)
+    {
+      // Got data in, retrieve it
+      int client_fd = accept(server->server_fd, NULL, NULL);
+      recv(client_fd, buffer, 4096, 0);
+
+      // We no longer need the socket, another thread can use it
+      pthread_mutex_unlock(&server->socketLock);
+
+      // TODO handle the data
+      printf("Recieved request: %s\n", buffer);
+    } else
+    {
+      // TODO some cases could also be considered
+      pthread_mutex_unlock(&server->socketLock);
+    }
 
     // Release the socket
-    pthread_mutex_unlock(&server->socketLock);
-
-    // Handle the data
   }
+
+  return NULL;
 }
