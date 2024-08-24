@@ -14,19 +14,25 @@ typedef struct
 
   bool running;
   int type;
-  void (*handler)(char *);
+  union 
+  {
+    void (*handler)(char *);
+    // TODO hastable later for endpoints
+  };
 
   pthread_mutex_t socketLock;
-  atomic_int totalThreads;
-  atomic_int activeThreads;
+  int numThreads;
   pthread_t *threadPool;
 } Server;
 
 // TODO make more and less specific server_init functions
 int server_init(Server *, const int, const int);
 
-void start_server(Server *);
+int start_server(Server *);
+int pause_server(Server *);
+int resume_server(Server *);
+int stop_server(Server *);
 
-void worker_thread(Server *);
+void * worker_thread(Server *);
 
 #endif
