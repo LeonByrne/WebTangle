@@ -14,11 +14,7 @@ typedef struct
 
   bool running;
   int type;
-  union 
-  {
-    void (*handler)(char *);
-    // TODO hastable later for endpoints
-  };
+  // TODO add a hashtable for url strings to function pointers
 
   pthread_mutex_t socketLock;
   int numThreads;
