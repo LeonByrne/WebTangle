@@ -1,5 +1,5 @@
-#ifndef _SERVER_H
-#define _SERVER_H
+#ifndef WT_SERVER_H
+#define WT_SERVER_H
 
 #include <pthread.h>
 #include <stdatomic.h>
@@ -15,6 +15,7 @@ typedef struct
   bool running;
   int type;
   // TODO add a hashtable for url strings to function pointers
+  
 
   pthread_mutex_t socketLock;
   int numThreads;
