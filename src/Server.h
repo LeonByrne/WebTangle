@@ -9,7 +9,7 @@
 
 #include "UrlMapping.h"
 
-typedef struct 
+typedef struct Server
 {
   int server_fd;
   struct sockaddr_in address;     // TODO could be removed, needed only for init
@@ -17,7 +17,7 @@ typedef struct
   bool running;
   int type;
 
-  UrlMapping *mappings;
+  UrlMapping **mappings;
   int nMappings;
 
   int numThreads;
@@ -30,9 +30,9 @@ typedef struct
 // TODO make more and less specific server_init functions
 int server_init(Server *, const int, const int);
 
-int add_mapping(Server *, char *, void (*handler)(Server *, HttpRequest *));
-int remove_mapping(Server *, char *);
-UrlMapping * get_mapping(Server *, char *);
+int add_mapping(Server *this, char *url, void (*handler)(Server *, HttpRequest *));
+int remove_mapping(Server *this, char *url);
+UrlMapping * get_mapping(Server *this, char *url);
 
 int start_server(Server *);
 int pause_server(Server *);
