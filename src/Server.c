@@ -2,6 +2,7 @@
 
 #include <stdbool.h>
 #include <malloc.h>
+#include <memory.h>
 
 #include <unistd.h>
 #include <poll.h>
@@ -43,10 +44,87 @@ int server_init(Server *server, const int port, const int queueSize)
 }
 
 /**
+ * @brief Adds a mapping (or overrides existing mapping) to the servers mappings
+ * 
+ * @param this 
+ * @param url 
+ * @param handler 
+ * @return int 0 if new mapping added, 1 if existing mapping overriden, -1 if mapping creatino failed
+ */
+int add_mapping(Server *this, char *url, void (*handler)(Server *, HttpRequest *))
+{
+  UrlMapping *mapping = create_mapping(url, handler);
+  if(mapping == NULL)
+  {
+    return -1;
+  }
+
+  // Check to see if url is already mapped
+  for(int i = 0; i < this->nMappings; i++)
+  {
+    if(strcmp(this->mappings[i]->url, url) == 0)
+    {
+      // Url already mapped, override it
+      delete_mapping(this->mappings[i]);
+      this->mappings[i] = mapping;
+
+      return 1;
+    }
+  }
+
+  this->mappings = realloc(this->mappings, sizeof(UrlMapping *) * (this->nMappings + 1));
+  this->mappings[this->nMappings] = mapping;
+  this->nMappings++;
+
+  return 0;
+}
+
+/**
  * @brief 
  * 
- * @param server 
+ * @param this 
+ * @param url 
+ * @return int 0 if successful, -1 if no such mapping existed
  */
+int remove_mapping(Server *this, char *url)
+{
+  for(int i = 0; i < this->nMappings; i++)
+  {
+    if(strcmp(this->mappings[i]->url, url) == 0)
+    {
+      delete_mapping(this->mappings[i]);
+
+      memcpy(this->mappings[i], this->mappings[i+1], sizeof(UrlMapping *) * (this->nMappings - i - 1));
+      this->mappings = realloc(this->mappings, sizeof(UrlMapping *) * (this->nMappings - 1));
+      this->nMappings--;
+
+      return 0;
+    }
+  }
+
+  return -1;
+}
+
+/**
+ * @brief Get the mapping object
+ * 
+ * @param this 
+ * @param url 
+ * @return UrlMapping* NULL if no such mapping exists, valid mapping otherwise
+ */
+UrlMapping *get_mapping(Server *this, char *url)
+{
+  for(int i = 0; i < this->nMappings; i++)
+  {
+    if(regexec(&this->mappings[i]->regex, url, 0, NULL, 0) == 0)
+    {
+      return this->mappings[i];
+    }
+  }
+
+  return NULL;
+}
+
 int start_server(Server *server)
 {
   server->running = true;
@@ -108,12 +186,12 @@ void * worker_thread(Server *server)
       continue;
     } else if(pfd.revents & POLLIN)
     {
+      // We no longer need the socket after we get the client_fd
+      pthread_mutex_unlock(&server->socketLock);
+
       // Got data in, retrieve it
       int client_fd = accept(server->server_fd, NULL, NULL);
       recv(client_fd, buffer, 4096, 0);
-
-      // We no longer need the socket, another thread can use it
-      pthread_mutex_unlock(&server->socketLock);
 
       // TODO handle the data
       printf("Recieved request: %s\n", buffer);
@@ -122,8 +200,6 @@ void * worker_thread(Server *server)
       // TODO some cases could also be considered
       pthread_mutex_unlock(&server->socketLock);
     }
-
-    // Release the socket
   }
 
   return NULL;
