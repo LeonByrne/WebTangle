@@ -3,6 +3,12 @@
 #include <malloc.h>
 #include <string.h>
 
+/**
+ * @brief Converts a url string into an appropiate string to make a regex
+ * 
+ * @param url 
+ * @return char* 
+ */
 char * url_to_regex(char *url)
 {
 	// No clue why this would need a buffer this big
@@ -52,23 +58,47 @@ char * url_to_regex(char *url)
 	return regex;
 }
 
+/**
+ * @brief Create a mapping object
+ * 
+ * @param url 
+ * @param handler 
+ * @return UrlMapping* returns NULL on failure, valid pointer on success
+ */
 UrlMapping * create_mapping(char *url, void (*handler)(Server *, HttpRequest *))
 {
-	UrlMapping *mapping = malloc(sizeof(UrlMapping));
+	UrlMapping *this = malloc(sizeof(UrlMapping));
 
-	char *urlCopy = malloc(strlen(url) + 1);
-	mapping->url = strcpy(urlCopy, url);
-	mapping->handler = handler;
+	// Allocate space and copy url string
+	this->url = malloc(strlen(url) + 1);
+	strcpy(this->url, url);
 
+	// Convert url into regex string, convert string to regex and free regex string
 	char *regStr = url_to_regex(url);
-	if(regcomp(&mapping->regex, regStr, REG_EXTENDED) != 0)
+	if(regcomp(&this->regex, regStr, REG_EXTENDED) != 0)
 	{
-		delete_mapping(mapping);
+		delete_mapping(this);
 		free(regStr);
 		return NULL;
 	}
-
 	free(regStr);
 
-	return mapping;
+	// Set handler
+	this->handler = handler;
+
+
+	return this;
+}
+
+/**
+ * @brief Frees the memory needed for a mapping
+ * 
+ * @param this 
+ */
+void delete_mapping(UrlMapping *this)
+{
+	free(this->url);
+	regfree(&this->regex);
+
+	free(this);
 }
