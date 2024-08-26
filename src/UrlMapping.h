@@ -4,6 +4,8 @@
 #include "HttpRequest.h"
 #include "Server.h"
 
+typedef struct Server Server;
+
 #include <regex.h>
 
 typedef struct UrlMapping

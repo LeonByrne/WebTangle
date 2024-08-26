@@ -9,6 +9,8 @@
 
 #include "UrlMapping.h"
 
+typedef struct UrlMapping UrlMapping;
+
 typedef struct Server
 {
   int server_fd;
