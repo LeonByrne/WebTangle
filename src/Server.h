@@ -30,7 +30,7 @@ typedef struct
 // TODO make more and less specific server_init functions
 int server_init(Server *, const int, const int);
 
-int add_mapping(Server *, UrlMapping *);
+int add_mapping(Server *, char *, void (*handler)(Server *, HttpRequest *));
 int remove_mapping(Server *, char *);
 UrlMapping * get_mapping(Server *, char *);
 
