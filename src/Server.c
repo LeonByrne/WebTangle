@@ -152,23 +152,23 @@ int stop_server(Server *server)
   return 0;
 }
 
-void * worker_thread(Server *server)
+void * worker_thread(Server *this)
 {
   char buffer[4096];
   struct pollfd pfd;
-  pfd.fd = server->server_fd;
+  pfd.fd = this->server_fd;
   pfd.events = POLLIN;
 
   while(true)
   {
     // Try to get the mutex
-    pthread_mutex_lock(&server->socketLock);
+    pthread_mutex_lock(&this->socketLock);
 
     // Check must be here for speedy pause/shutdown
     // As a loop condition, each thread would have to try recv
-    if(!server->running)
+    if(!this->running)
     {
-      pthread_mutex_unlock(&server->socketLock);
+      pthread_mutex_unlock(&this->socketLock);
       break;
     }
 
@@ -177,28 +177,39 @@ void * worker_thread(Server *server)
     if(p < 0)
     {
       // TODO log an error
-      pthread_mutex_unlock(&server->socketLock);
+      pthread_mutex_unlock(&this->socketLock);
       continue;
     } else if(p == 0)
     {
       // Timeout ocurred
-      pthread_mutex_unlock(&server->socketLock);
+      pthread_mutex_unlock(&this->socketLock);
       continue;
     } else if(pfd.revents & POLLIN)
     {
       // We no longer need the socket after we get the client_fd
-      pthread_mutex_unlock(&server->socketLock);
+      pthread_mutex_unlock(&this->socketLock);
 
       // Got data in, retrieve it
-      int client_fd = accept(server->server_fd, NULL, NULL);
+      int client_fd = accept(this->server_fd, NULL, NULL);
       recv(client_fd, buffer, 4096, 0);
 
       // TODO handle the data
-      printf("Recieved request: %s\n", buffer);
+      // printf("Recieved request: %s\n", buffer);
+
+      HttpRequest *request = create_request(buffer, client_fd);
+      UrlMapping *mapping = get_mapping(this, request->url);
+
+      if(mapping == NULL)
+      {
+        printf("Can't find mapping. Url: %s is incorrect.\n", request->url);
+      } else
+      {
+        mapping->handler(this, request);
+      }
     } else
     {
       // TODO some cases could also be considered
-      pthread_mutex_unlock(&server->socketLock);
+      pthread_mutex_unlock(&this->socketLock);
     }
   }
 
