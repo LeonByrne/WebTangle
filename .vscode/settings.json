@@ -1,6 +1,7 @@
 {
   "files.associations": {
     "server.h": "c",
-    "inet.h": "c"
+    "inet.h": "c",
+    "urlmapping.h": "c"
   }
 }
