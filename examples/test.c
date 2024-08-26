@@ -3,6 +3,11 @@
 #include <stdio.h>
 #include <unistd.h>
 
+void handler_test(Server *server, HttpRequest *request)
+{
+  printf("Handler reached\n");
+}
+
 int main()
 {
 	Server server;
@@ -12,6 +17,9 @@ int main()
 	{
 		printf("Failed to create server. Code: %d\n", s);
 	}
+
+	add_mapping(&server, "/", handler_test);
+
 	start_server(&server);
 
 	sleep(1000*60);
