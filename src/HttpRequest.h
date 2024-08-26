@@ -11,6 +11,7 @@ typedef struct HttpRequest
 	char *body;
 } HttpRequest;
 
-HttpRequest convert_to_request(char *);
+HttpRequest * create_request(char *, const int);
+void delete_request(HttpRequest *);
 
 #endif
