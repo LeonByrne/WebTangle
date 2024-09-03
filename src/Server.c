@@ -7,211 +7,367 @@
 #include <unistd.h>
 #include <poll.h>
 
-int server_init(Server *server, const int port, const int queueSize)
+typedef struct RequestNode
 {
-  if(pthread_mutex_init(&server->socketLock, NULL) != 0)
-  {
-    return -1;
-  }
+  HttpRequest *request;
+  RequestNode *next;
+} RequestNode;
 
-  server->address.sin_family = AF_INET;
-  server->address.sin_port = htons(port);
-  server->address.sin_addr.s_addr = INADDR_ANY;
+static int server_fd;
+static bool running;
 
-  server->server_fd = socket(AF_INET, SOCK_STREAM, 0);
-  if(server->server_fd == 0)
-  {
-    return -2;
-  }
+static UrlMapping *mappings = NULL;
+static int nMappings = 0;
 
-  if(bind(server->server_fd, (struct sockaddr *) &server->address, sizeof(server->address)) != 0)
-  {
-    close(server->server_fd);
-    return -3;
-  }
+static pthread_t listenThread;
+static pthread_t *threadPool;
+static int nThreads;
 
-  if(listen(server->server_fd, queueSize) != 0)
-  {
-    close(server->server_fd);
-    return -4;
-  }
+void * worker_thread(void *);
 
-  server->running = false;
-  server->numThreads = 4;  // TODO make default or accept arguement
-  server->threadPool = malloc(sizeof(pthread_t) * server->numThreads);
+static pthread_mutex_t queueLock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t queueCond = PTHREAD_COND_INITIALIZER;
+static RequestNode *queueHead = NULL;
+static RequestNode *queueTail = NULL;
 
-  return 0;
-}
-
-/**
- * @brief Adds a mapping (or overrides existing mapping) to the servers mappings
- * 
- * @param this 
- * @param url 
- * @param handler 
- * @return int 0 if new mapping added, 1 if existing mapping overriden, -1 if mapping creatino failed
- */
-int add_mapping(Server *this, char *url, void (*handler)(Server *, HttpRequest *))
-{
-  UrlMapping *mapping = create_mapping(url, handler);
-  if(mapping == NULL)
-  {
-    return -1;
-  }
-
-  // Check to see if url is already mapped
-  for(int i = 0; i < this->nMappings; i++)
-  {
-    if(strcmp(this->mappings[i]->url, url) == 0)
-    {
-      // Url already mapped, override it
-      delete_mapping(this->mappings[i]);
-      this->mappings[i] = mapping;
-
-      return 1;
-    }
-  }
-
-  this->mappings = realloc(this->mappings, sizeof(UrlMapping *) * (this->nMappings + 1));
-  this->mappings[this->nMappings] = mapping;
-  this->nMappings++;
-
-  return 0;
-}
+void enqueue_request(HttpRequest *request);
+HttpRequest * dequeue_request();
 
 /**
  * @brief 
  * 
- * @param this 
- * @param url 
- * @return int 0 if successful, -1 if no such mapping existed
+ * @param port 
+ * @return int 
  */
-int remove_mapping(Server *this, char *url)
+int WT_init(const int port)
 {
-  for(int i = 0; i < this->nMappings; i++)
-  {
-    if(strcmp(this->mappings[i]->url, url) == 0)
-    {
-      delete_mapping(this->mappings[i]);
+  // Create socket
 
-      memcpy(this->mappings[i], this->mappings[i+1], sizeof(UrlMapping *) * (this->nMappings - i - 1));
-      this->mappings = realloc(this->mappings, sizeof(UrlMapping *) * (this->nMappings - 1));
-      this->nMappings--;
+  // Bind socket
 
-      return 0;
-    }
-  }
+  // Set running to true
 
-  return -1;
-}
+  // Create listen thread
 
-/**
- * @brief Get the mapping object
- * 
- * @param this 
- * @param url 
- * @return UrlMapping* NULL if no such mapping exists, valid mapping otherwise
- */
-UrlMapping *get_mapping(Server *this, char *url)
-{
-  for(int i = 0; i < this->nMappings; i++)
-  {
-    if(regexec(&this->mappings[i]->regex, url, 0, NULL, 0) == 0)
-    {
-      return this->mappings[i];
-    }
-  }
-
-  return NULL;
-}
-
-int start_server(Server *server)
-{
-  server->running = true;
-
-  for(int i = 0; i < server->numThreads; i++)
-  {
-    pthread_create(&server->threadPool[i], NULL, (void * (*)(void *)) worker_thread, server);
-  }
+  // Create thread pool
 
   return 0;
 }
 
-int pause_server(Server  *server)
+int WT_shutdown()
 {
+  // Set running to false
+
+  // Stop listen thread
+
+  // Stop worker threads
+
+  // Free memory
+
   return 0;
 }
 
-int resume_server(Server *server)
+int WT_add_mapping(const char *method, const char *url, void (*handler)(HttpRequest *))
 {
+  // Create mapping
+
+  // Check if mapping already exists
+  // If exists return failure
+  // Else add it
+
+  // Realloc to get additional space
+  
+  // Add mapping to new space
+
+  // Increase mapping count
+
   return 0;
 }
 
-int stop_server(Server *server)
+void *worker_thread(void *)
 {
-  return 0;
-}
-
-void * worker_thread(Server *this)
-{
-  char buffer[4096];
-  struct pollfd pfd;
-  pfd.fd = this->server_fd;
-  pfd.events = POLLIN;
-
-  while(true)
+  while(running)
   {
-    // Try to get the mutex
-    pthread_mutex_lock(&this->socketLock);
+    // Get a request
+    HttpRequest *request = dequeue_request();
 
-    // Check must be here for speedy pause/shutdown
-    // As a loop condition, each thread would have to try recv
-    if(!this->running)
+    if(request == NULL)
     {
-      pthread_mutex_unlock(&this->socketLock);
-      break;
-    }
-
-    // Poll for 100ms
-    int p = poll(&pfd, 1, 100);
-    if(p < 0)
-    {
-      // TODO log an error
-      pthread_mutex_unlock(&this->socketLock);
+      // May be becase of error or may no longer be running
       continue;
-    } else if(p == 0)
-    {
-      // Timeout ocurred
-      pthread_mutex_unlock(&this->socketLock);
-      continue;
-    } else if(pfd.revents & POLLIN)
-    {
-      // We no longer need the socket after we get the client_fd
-      pthread_mutex_unlock(&this->socketLock);
-
-      // Got data in, retrieve it
-      int client_fd = accept(this->server_fd, NULL, NULL);
-      recv(client_fd, buffer, 4096, 0);
-
-      // TODO handle the data
-      // printf("Recieved request: %s\n", buffer);
-
-      HttpRequest *request = create_request(buffer, client_fd);
-      UrlMapping *mapping = get_mapping(this, request->url);
-
-      if(mapping == NULL)
-      {
-        printf("Can't find mapping. Url: %s is incorrect.\n", request->url);
-      } else
-      {
-        mapping->handler(this, request);
-      }
-    } else
-    {
-      // TODO some cases could also be considered
-      pthread_mutex_unlock(&this->socketLock);
     }
+
+    // TODO resolve method/url to handler and pass data along
+
+    delete_request(request);
+  }
+}
+
+void enqueue_request(HttpRequest *request)
+{
+  // Make new node
+  RequestNode *node = malloc(sizeof(RequestNode));
+  node->request = request;
+  node->next = NULL;
+
+  // Aquire lock
+  pthread_mutex_lock(&queueLock);
+
+  if(queueTail == NULL)
+  {
+    // If queue is empty both head and tail are node
+    queueHead = node;
+    queueTail = node;
+  } else
+  {
+    // If queue isn't empty just append to tail
+    queueTail->next = node;
+    queueTail = node;
   }
 
-  return NULL;
+  // Signal that new request has arrived and release lock
+  pthread_cond_signal(&queueCond);
+  pthread_mutex_unlock(&queueLock);
 }
+
+HttpRequest * dequeue_request()
+{
+  // Aquire lock
+  pthread_mutex_lock(&queueLock);
+
+  // If head is NULL wait for cond and head to not be NULL
+  while(queueHead == NULL)
+  {
+    // Sometimes a signal might come but another thread might snatch the data first
+    // So the while loop is used instead of an if, it checks for NULL one last time
+    pthread_cond_wait(&queueCond, &queueLock);
+  }
+
+  // Get the head and request
+  RequestNode *node = queueHead;
+  HttpRequest *request = node->request;
+
+  // Move head
+  queueHead = queueHead->next;
+  if(queueHead == NULL)
+  {
+    queueTail = NULL;
+  }
+
+  // Free memory
+  free(node);
+
+  // Release the lock
+  pthread_mutex_unlock(&queueLock);
+
+  return request;
+}
+
+// int server_init(Server *server, const int port, const int queueSize)
+// {
+//   if(pthread_mutex_init(&server->socketLock, NULL) != 0)
+//   {
+//     return -1;
+//   }
+
+//   server->address.sin_family = AF_INET;
+//   server->address.sin_port = htons(port);
+//   server->address.sin_addr.s_addr = INADDR_ANY;
+
+//   server->server_fd = socket(AF_INET, SOCK_STREAM, 0);
+//   if(server->server_fd == 0)
+//   {
+//     return -2;
+//   }
+
+//   if(bind(server->server_fd, (struct sockaddr *) &server->address, sizeof(server->address)) != 0)
+//   {
+//     close(server->server_fd);
+//     return -3;
+//   }
+
+//   if(listen(server->server_fd, queueSize) != 0)
+//   {
+//     close(server->server_fd);
+//     return -4;
+//   }
+
+//   server->running = false;
+//   server->numThreads = 4;  // TODO make default or accept arguement
+//   server->threadPool = malloc(sizeof(pthread_t) * server->numThreads);
+
+//   return 0;
+// }
+
+// /**
+//  * @brief Adds a mapping (or overrides existing mapping) to the servers mappings
+//  * 
+//  * @param this 
+//  * @param url 
+//  * @param handler 
+//  * @return int 0 if new mapping added, 1 if existing mapping overriden, -1 if mapping creatino failed
+//  */
+// int add_mapping(Server *this, char *url, void (*handler)(Server *, HttpRequest *))
+// {
+//   UrlMapping *mapping = create_mapping(url, handler);
+//   if(mapping == NULL)
+//   {
+//     return -1;
+//   }
+
+//   // Check to see if url is already mapped
+//   for(int i = 0; i < this->nMappings; i++)
+//   {
+//     if(strcmp(this->mappings[i]->url, url) == 0)
+//     {
+//       // Url already mapped, override it
+//       delete_mapping(this->mappings[i]);
+//       this->mappings[i] = mapping;
+
+//       return 1;
+//     }
+//   }
+
+//   this->mappings = realloc(this->mappings, sizeof(UrlMapping *) * (this->nMappings + 1));
+//   this->mappings[this->nMappings] = mapping;
+//   this->nMappings++;
+
+//   return 0;
+// }
+
+// /**
+//  * @brief 
+//  * 
+//  * @param this 
+//  * @param url 
+//  * @return int 0 if successful, -1 if no such mapping existed
+//  */
+// int remove_mapping(Server *this, char *url)
+// {
+//   for(int i = 0; i < this->nMappings; i++)
+//   {
+//     if(strcmp(this->mappings[i]->url, url) == 0)
+//     {
+//       delete_mapping(this->mappings[i]);
+
+//       memcpy(this->mappings[i], this->mappings[i+1], sizeof(UrlMapping *) * (this->nMappings - i - 1));
+//       this->mappings = realloc(this->mappings, sizeof(UrlMapping *) * (this->nMappings - 1));
+//       this->nMappings--;
+
+//       return 0;
+//     }
+//   }
+
+//   return -1;
+// }
+
+// /**
+//  * @brief Get the mapping object
+//  * 
+//  * @param this 
+//  * @param url 
+//  * @return UrlMapping* NULL if no such mapping exists, valid mapping otherwise
+//  */
+// UrlMapping *get_mapping(Server *this, char *url)
+// {
+//   for(int i = 0; i < this->nMappings; i++)
+//   {
+//     if(regexec(&this->mappings[i]->regex, url, 0, NULL, 0) == 0)
+//     {
+//       return this->mappings[i];
+//     }
+//   }
+
+//   return NULL;
+// }
+
+// int start_server(Server *server)
+// {
+//   server->running = true;
+
+//   for(int i = 0; i < server->numThreads; i++)
+//   {
+//     pthread_create(&server->threadPool[i], NULL, (void * (*)(void *)) worker_thread, server);
+//   }
+
+//   return 0;
+// }
+
+// int pause_server(Server  *server)
+// {
+//   return 0;
+// }
+
+// int resume_server(Server *server)
+// {
+//   return 0;
+// }
+
+// int stop_server(Server *server)
+// {
+//   return 0;
+// }
+
+// void * worker_thread(Server *this)
+// {
+//   char buffer[4096];
+//   struct pollfd pfd;
+//   pfd.fd = this->server_fd;
+//   pfd.events = POLLIN;
+
+//   while(true)
+//   {
+//     // Try to get the mutex
+//     pthread_mutex_lock(&this->socketLock);
+
+//     // Check must be here for speedy pause/shutdown
+//     // As a loop condition, each thread would have to try recv
+//     if(!this->running)
+//     {
+//       pthread_mutex_unlock(&this->socketLock);
+//       break;
+//     }
+
+//     // Poll for 100ms
+//     int p = poll(&pfd, 1, 100);
+//     if(p < 0)
+//     {
+//       // TODO log an error
+//       pthread_mutex_unlock(&this->socketLock);
+//       continue;
+//     } else if(p == 0)
+//     {
+//       // Timeout ocurred
+//       pthread_mutex_unlock(&this->socketLock);
+//       continue;
+//     } else if(pfd.revents & POLLIN)
+//     {
+//       // We no longer need the socket after we get the client_fd
+//       pthread_mutex_unlock(&this->socketLock);
+
+//       // Got data in, retrieve it
+//       int client_fd = accept(this->server_fd, NULL, NULL);
+//       recv(client_fd, buffer, 4096, 0);
+
+//       // TODO handle the data
+//       // printf("Recieved request: %s\n", buffer);
+
+//       HttpRequest *request = create_request(buffer, client_fd);
+//       UrlMapping *mapping = get_mapping(this, request->url);
+
+//       if(mapping == NULL)
+//       {
+//         printf("Can't find mapping. Url: %s is incorrect.\n", request->url);
+//       } else
+//       {
+//         mapping->handler(this, request);
+//       }
+//     } else
+//     {
+//       // TODO some cases could also be considered
+//       pthread_mutex_unlock(&this->socketLock);
+//     }
+//   }
+
+//   return NULL;
+// }
