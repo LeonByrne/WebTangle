@@ -11,6 +11,7 @@
 
 typedef struct UrlMapping UrlMapping;
 
+// TODO remove server related structs, we doing global state now
 typedef struct Server
 {
   int server_fd;
@@ -30,17 +31,22 @@ typedef struct Server
 } Server;
 
 // TODO make more and less specific server_init functions
-int server_init(Server *, const int, const int);
+// int server_init(Server *, const int, const int);
 
-int add_mapping(Server *this, char *url, void (*handler)(Server *, HttpRequest *));
-int remove_mapping(Server *this, char *url);
-UrlMapping * get_mapping(Server *this, char *url);
+// int add_mapping(Server *this, char *url, void (*handler)(Server *, HttpRequest *));
+// int remove_mapping(Server *this, char *url);
+// UrlMapping * get_mapping(Server *this, char *url);
 
-int start_server(Server *);
-int pause_server(Server *);
-int resume_server(Server *);
-int stop_server(Server *);
+// int start_server(Server *);
+// int pause_server(Server *);
+// int resume_server(Server *);
+// int stop_server(Server *);
 
-void * worker_thread(Server *);
+// void * worker_thread(Server *);
+
+int WT_init(const int port);
+int WT_shutdown();
+
+int WT_add_mapping(const char *method, const char *url, void (*handler)(HttpRequest *));
 
 #endif
