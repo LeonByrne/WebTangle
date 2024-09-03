@@ -15,7 +15,7 @@ typedef struct UrlMapping
 	void (*handler)(Server *, HttpRequest *);
 } UrlMapping;
 
-UrlMapping * create_mapping(char *, void (*handler)(Server *, HttpRequest *));
+UrlMapping * create_mapping(char *method, char *url, void (*handler)(Server *, HttpRequest *));
 void delete_mapping(UrlMapping *);
 
 #endif
