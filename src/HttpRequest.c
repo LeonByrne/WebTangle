@@ -32,15 +32,11 @@ HttpRequest * create_request(char *data, const int client_fd)
  */
 void delete_request(HttpRequest *this)
 {
-  // TODO should I close client_fd?
-
-  // Free all strings 
-  // method points to the start of all strings
+  // Free buffer
+  // method is the start of the buffer
   free(this->method);
-  // free(this->url);
-  // free(this->version);
-  // free(this->headers);
-  // free(this->body);
+
+  close(this->client_fd);
 
   free(this);
 }
