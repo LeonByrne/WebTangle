@@ -34,12 +34,13 @@ void delete_request(HttpRequest *this)
 {
   // TODO should I close client_fd?
 
-  // Free all strings
+  // Free all strings 
+  // method points to the start of all strings
   free(this->method);
-  free(this->url);
-  free(this->version);
-  free(this->headers);
-  free(this->body);
+  // free(this->url);
+  // free(this->version);
+  // free(this->headers);
+  // free(this->body);
 
   free(this);
 }
