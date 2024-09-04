@@ -65,7 +65,7 @@ char * url_to_regex(char *url)
  * @param handler 
  * @return UrlMapping* returns NULL on failure, valid pointer on success
  */
-UrlMapping * create_mapping(char *method, char *url, void (*handler)(Server *, HttpRequest *))
+UrlMapping * create_mapping(char *method, char *url, void (*handler)(HttpRequest *))
 {
 	// TODO use method, add to regex. If no method given allow all methods
 

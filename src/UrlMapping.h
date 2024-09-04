@@ -12,10 +12,10 @@ typedef struct UrlMapping
 {
 	char *url;
 	regex_t regex;
-	void (*handler)(Server *, HttpRequest *);
+	void (*handler)(HttpRequest *);
 } UrlMapping;
 
-UrlMapping * create_mapping(char *method, char *url, void (*handler)(Server *, HttpRequest *));
+UrlMapping * create_mapping(char *method, char *url, void (*handler)(HttpRequest *));
 void delete_mapping(UrlMapping *);
 
 #endif
