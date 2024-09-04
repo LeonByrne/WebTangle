@@ -7,6 +7,8 @@
 #include <unistd.h>
 #include <poll.h>
 
+typedef struct RequestNode RequestNode;
+
 typedef struct RequestNode
 {
   HttpRequest *request;
@@ -59,7 +61,7 @@ int WT_init(const int port)
   if(bind(server_fd, (struct sockaddr *) &address, sizeof(address)) != 0)
   {
     close(server_fd);
-    return -1;
+    return -2;
   }
 
   // Set listen
@@ -67,7 +69,7 @@ int WT_init(const int port)
   if(listen(server_fd, 32) != 0)
   {
     close(server_fd);
-    return -1;
+    return -3;
   }
 
   // Set running to true
@@ -79,6 +81,7 @@ int WT_init(const int port)
 
   // Create thread pool
   nThreads = 4;
+  threadPool = malloc(sizeof(pthread_t) * nThreads);
   for(int i = 0; i < nThreads; i++)
   {
     pthread_create(&threadPool[i], NULL, worker_thread, NULL);
@@ -161,9 +164,6 @@ void * listen_thread(void *)
     {
       free(buffer);
     }
-
-    // TODO Should be closed by delete_request function maybe?
-    close(client_fd);
   }
 }
 
@@ -181,7 +181,16 @@ void * worker_thread(void *)
     }
 
     // TODO resolve method/url to handler and pass data along
-    printf("url: %s\n", request->url);
+    printf("Incoming request\n");
+    printf("  url:    %s\n", request->url);
+    printf("  method: %s\n", request->method);
+
+    char *response = "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n";
+    int bytesSent = send(request->client_fd, response, strlen(response), 0);
+    if(bytesSent < 0)
+    {
+      printf("Error sending response\n");
+    }
 
     delete_request(request);
   }
