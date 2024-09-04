@@ -12,7 +12,7 @@ typedef struct UrlMapping
 	void (*handler)(HttpRequest *);
 } UrlMapping;
 
-UrlMapping * create_mapping(char *method, char *url, void (*handler)(HttpRequest *));
+UrlMapping * create_mapping(const char *method, const char *url, void (*handler)(HttpRequest *));
 void delete_mapping(UrlMapping *);
 
 #endif
