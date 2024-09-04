@@ -16,5 +16,11 @@ int main()
 		printf("Failed to create server. Code: %d\n", s);
 	}
 
-	sleep(1000*60 * 5);
+	sleep(1);
+
+	WT_shutdown();
+
+	printf("Server offline\n");
+
+	return 0;
 }

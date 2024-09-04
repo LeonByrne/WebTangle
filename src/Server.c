@@ -89,20 +89,55 @@ int WT_init(const int port)
     pthread_create(&threadPool[i], NULL, worker_thread, NULL);
   }
 
+  // Setup mappings
+  nMappings = 0;
+
   return 0;
 }
 
 int WT_shutdown()
 {
-  // TODO implement later
-
   // Set running to false
+  running = false;
 
   // Stop listen thread
+  pthread_join(listenThread, NULL);
 
   // Stop worker threads
+  for(int i = 0; i < nThreads; i++)
+  {
+    // Add a dummy (NULL) request for each worker
+    enqueue_request(NULL);
+  }
 
-  // Free memory
+  for(int i = 0; i < nThreads; i++)
+  {
+    // Join worker threads
+    pthread_join(threadPool[i], NULL);
+  }
+
+  // Free mappings
+  for(int i = 0; i < nMappings; i++)
+  {
+    delete_mapping(mappings[i]);
+  }
+  free(mappings);
+
+  // Free Request Queue, it should now contain only dummy requests
+  while(queueHead != NULL)
+  {
+    RequestNode *node = queueHead;
+
+    queueHead = queueHead->next;
+    if(queueHead == NULL)
+    {
+      queueTail = NULL;
+    }
+
+    free(node);
+  }
+
+  close(server_fd);
 
   return 0;
 }
@@ -140,11 +175,22 @@ int WT_add_mapping(const char *method, const char *url, void (*handler)(HttpRequ
 
 void * listen_thread(void *)
 {
-  // TODO setup pollfd timeout
+  struct pollfd pfd;
+  pfd.fd = server_fd;
+  pfd.events = POLLIN;
 
   while(running)
   {
-    // TODO pollfd before accepting
+    int p = poll(&pfd, 1, 100);
+    if(p < 0)
+    {
+      // TODO log error
+      continue;
+    } else if(p == 0)
+    {
+      // Timeout ocurred, try again or stop if running is false
+      continue;
+    }
 
     // Accept new connection
     int client_fd = accept(server_fd, NULL, NULL);
@@ -178,7 +224,7 @@ void * worker_thread(void *)
 
     if(request == NULL)
     {
-      // May be becase of error or may no longer be running
+      // Dummy requests may indicate server has stopped working
       continue;
     }
 
