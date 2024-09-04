@@ -3,6 +3,8 @@
 #include <malloc.h>
 #include <string.h>
 
+#include <unistd.h>
+
 /**
  * @brief Corrupts string given to it but does not own it
  * 
