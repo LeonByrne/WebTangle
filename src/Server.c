@@ -3,7 +3,9 @@
 #include <stdbool.h>
 #include <malloc.h>
 #include <memory.h>
+#include <pthread.h>
 
+#include <arpa/inet.h>
 #include <unistd.h>
 #include <poll.h>
 

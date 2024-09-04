@@ -2,9 +2,6 @@
 #define WT_URL_MAPPING_H
 
 #include "HttpRequest.h"
-#include "Server.h"
-
-typedef struct Server Server;
 
 #include <regex.h>
 
