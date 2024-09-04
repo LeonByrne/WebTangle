@@ -3,24 +3,18 @@
 #include <stdio.h>
 #include <unistd.h>
 
-void handler_test(Server *server, HttpRequest *request)
+void handler_test(HttpRequest *request)
 {
   printf("Handler reached\n");
 }
 
 int main()
 {
-	Server server;
-
-	int s = server_init(&server, 8080, 10);
+	int s = WT_init(8080);
 	if(s != 0)
 	{
 		printf("Failed to create server. Code: %d\n", s);
 	}
 
-	add_mapping(&server, "/", handler_test);
-
-	start_server(&server);
-
-	sleep(1000*60);
+	sleep(1000*60 * 5);
 }
