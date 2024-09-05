@@ -20,6 +20,10 @@ typedef struct RequestNode
 static int server_fd;
 static bool running;
 
+// TODO enusre cleanup is performed
+static char **pageURls = NULL;
+static int nPages;
+
 static UrlMapping **mappings = NULL;
 static int nMappings = 0;
 
@@ -37,6 +41,8 @@ static RequestNode *queueTail = NULL;
 
 void enqueue_request(HttpRequest *request);
 HttpRequest * dequeue_request();
+
+char * status_str(const int status);
 
 /**
  * @brief 
@@ -173,6 +179,43 @@ int WT_add_mapping(const char *method, const char *url, void (*handler)(HttpRequ
   return 0;
 }
 
+int WT_add_webpages(const char *path)
+{
+  // TODO implement
+  return 0;
+}
+
+int WT_send_status(const int dest_fd, const int code)
+{
+  // TODO implement
+  return 0;
+}
+
+int WT_send_msg(const int dest_fd, const int code, const char *msg)
+{
+  // TODO implement
+  return 0;
+}
+
+int WT_send_page(const int dest_fd, const int code, const char *filepath)
+{
+  // Simple thing to send files, just needs the other function to work now
+  return WT_send_file(dest_fd, code, filepath, "text/html");
+}
+
+int WT_send_file(const int dest_fd, const int code, const char *filepath, const char *filetype)
+{
+  // TODO implement
+
+  // Get size of file
+
+  // Send start of response
+
+  // Send file
+
+  return 0;
+}
+
 void * listen_thread(void *)
 {
   struct pollfd pfd;
@@ -302,4 +345,10 @@ HttpRequest * dequeue_request()
   pthread_mutex_unlock(&queueLock);
 
   return request;
+}
+
+char * status_str(const int status)
+{
+  // TODO implement
+  return NULL;
 }
