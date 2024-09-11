@@ -16,7 +16,7 @@ int main()
 		printf("Failed to create server. Code: %d\n", s);
 	}
 
-	sleep(1);
+	sleep(600);
 
 	WT_shutdown();
 
