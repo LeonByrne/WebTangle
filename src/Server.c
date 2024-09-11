@@ -9,6 +9,10 @@
 #include <unistd.h>
 #include <poll.h>
 
+#include <sys/stat.h>
+#include <sys/sendfile.h>
+#include <fcntl.h>
+
 typedef struct RequestNode RequestNode;
 
 typedef struct RequestNode
@@ -187,31 +191,135 @@ int WT_add_webpages(const char *path)
 
 int WT_send_status(const int dest_fd, const int code)
 {
-  // TODO implement
+  // TODO add more status codes
+  // TODO maybe move this to a new function for resue purposes
+  char *statusMsg = NULL;
+  if(code == 200)
+  {
+    statusMsg = "OK";
+  } else if(code == 404)
+  {
+    statusMsg = "Not Found";
+  } else 
+  {
+    statusMsg = "Error, unknown status code";
+  }
+
+  char response[256];
+  int responseLength = snprintf(response, sizeof(response),
+    "HTTP/1.2 %d %s\r\nContent-Length: 0\r\n\r\n",
+    code,
+    statusMsg
+  );
+
+  if(send(dest_fd, response, responseLength, 0) == -1)
+  {
+    // TODO log error
+    return -1;
+  }
+
   return 0;
 }
 
 int WT_send_msg(const int dest_fd, const int code, const char *msg)
 {
-  // TODO implement
+  return WT_send_data(dest_fd, code, msg, "text/plain", strlen(msg));
+}
+
+int WT_send_data(const int dest_fd, const int code, const char *data, const char *dataType, const int length)
+{
+  // TODO add more status codes
+  // TODO maybe move this to a new function for resue purposes
+  char *statusMsg = NULL;
+  if(code == 200)
+  {
+    statusMsg = "OK";
+  } else if(code == 404)
+  {
+    statusMsg = "Not Found";
+  } else 
+  {
+    statusMsg = "Error, unknown status code";
+  }
+
+  // TODO does this work? Or does it need more
+  char response[256];
+  int responseLength = snprintf(response, sizeof(response), 
+    "HTTP/1.2 %d %s\r\nContent-Length: %d\r\nContent-Type: %s\r\n\r\n",
+    code,
+    statusMsg,
+    length,
+    dataType   
+  );
+
+  if(send(dest_fd, response, responseLength, 0) == -1)
+  {
+    // TODO log error
+    return -1;
+  } 
+  
+  if(send(dest_fd, data, length, 0) == -1)
+  {
+    // TODO log error
+    return -1;
+  }
+
   return 0;
 }
 
 int WT_send_page(const int dest_fd, const int code, const char *filepath)
 {
-  // Simple thing to send files, just needs the other function to work now
   return WT_send_file(dest_fd, code, filepath, "text/html");
 }
 
 int WT_send_file(const int dest_fd, const int code, const char *filepath, const char *filetype)
 {
-  // TODO implement
+  // TODO add more status codes
+  // TODO maybe move this to a new function for resue purposes
+  char *statusMsg = NULL;
+  if(code == 200)
+  {
+    statusMsg = "OK";
+  } else if(code == 404)
+  {
+    statusMsg = "Not Found";
+  } else 
+  {
+    statusMsg = "Error, unknown status code";
+  }
 
   // Get size of file
+  int fd = open(filepath, O_RDONLY);
+  struct stat fileStat;
+  fstat(fd, &fileStat);
 
-  // Send start of response
+  // TODO does this work? Or does it need more
+  char response[256];
+  int responseLength = snprintf(response, sizeof(response), 
+    "HTTP/1.2 %d %s\r\nContent-Length: %ld\r\nContent-Type: %s\r\n\r\n",
+    code,
+    statusMsg,
+    fileStat.st_size,
+    filetype  
+  );
 
-  // Send file
+  if(send(dest_fd, response, responseLength, 0) == -1)
+  {
+    close(fd);
+
+    // TODO log error
+    return -1;
+  }
+
+  if(sendfile(dest_fd, fd, NULL, fileStat.st_size) == -1)
+  {
+    close(fd);
+
+    // TODO log error
+    return -1;
+  }
+
+  close(fd);
 
   return 0;
 }
@@ -276,12 +384,16 @@ void * worker_thread(void *)
     printf("  url:    %s\n", request->url);
     printf("  method: %s\n", request->method);
 
-    char *response = "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n";
-    int bytesSent = send(request->client_fd, response, strlen(response), 0);
-    if(bytesSent < 0)
-    {
-      printf("Error sending response\n");
-    }
+    // char *response = "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n";
+    // int bytesSent = send(request->client_fd, response, strlen(response), 0);
+    // if(bytesSent < 0)
+    // {
+    //   printf("Error sending response\n");
+    // }
+
+    // WT_send_status(request->client_fd, 200);
+    // WT_send_msg(request->client_fd, 200, "Hello world!");
+    WT_send_page(request->client_fd, 200, "resources/test.html");
 
     delete_request(request);
   }
