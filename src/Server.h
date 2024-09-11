@@ -22,6 +22,7 @@ int WT_add_webpages(const char *path);
 
 int WT_send_status(const int dest_fd, const int code);
 int WT_send_msg(const int dest_fd, const int code, const char *msg);
+int WT_send_data(const int dest_fd, const int code, const char *data, const char *dataType, const int length);
 int WT_send_page(const int dest_fd, const int code, const char *filepath);
 int WT_send_file(const int dest_fd, const int code, const char *filepath, const char *filetype);
 
