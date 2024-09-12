@@ -13,6 +13,9 @@
 #include <sys/sendfile.h>
 #include <fcntl.h>
 
+#include "PageMapping.h"
+#include "HandlerMapping.h"
+
 typedef struct RequestNode RequestNode;
 
 typedef struct RequestNode
@@ -28,10 +31,10 @@ static int server_fd;
 static bool running;
 
 // TODO enusre cleanup is performed
-static char **pageURls = NULL;
-static int nPages;
+static PageMapping **pageMappings = NULL;
+static int nPages = 0;
 
-static UrlMapping **mappings = NULL;
+static HandlerMapping **handlerMappings = NULL;
 static int nMappings = 0;
 
 static pthread_t listenThread;
@@ -52,8 +55,6 @@ void enqueue_request(HttpRequest *request);
 HttpRequest * dequeue_request();
 
 const char * status_str(const int status);
-
-void send_page(HttpRequest *request);
 
 /**
  * @brief 
@@ -106,7 +107,8 @@ int WT_init(const int port)
     pthread_create(&threadPool[i], NULL, worker_thread, NULL);
   }
 
-  // Setup mappings
+  // Setup pages and mappings
+  nPages = 0;
   nMappings = 0;
 
   return 0;
@@ -136,9 +138,9 @@ int WT_shutdown()
   // Free mappings
   for(int i = 0; i < nMappings; i++)
   {
-    delete_mapping(mappings[i]);
+    delete_handler_mapping(handlerMappings[i]);
   }
-  free(mappings);
+  free(handlerMappings);
 
   // Free Request Queue, it should now contain only dummy requests
   while(queueHead != NULL)
@@ -164,7 +166,7 @@ int WT_add_mapping(const char *method, const char *url, void (*handler)(HttpRequ
   // TODO Choose failure codes later
 
   // Create mapping
-  UrlMapping *mapping = create_mapping(method, url, handler);
+  HandlerMapping *mapping = create_handler_mapping(method, url, handler);
 
   if(mapping == NULL)
   {
@@ -175,7 +177,7 @@ int WT_add_mapping(const char *method, const char *url, void (*handler)(HttpRequ
   for(int i = 0; i < nMappings; i++)
   {
     // TODO account for different methods later
-    if(strcmp(mappings[i]->url, mapping->url) == 0)
+    if(strcmp(handlerMappings[i]->url, mapping->url) == 0)
     {
       // If exists return failure
       char error[256];
@@ -186,18 +188,44 @@ int WT_add_mapping(const char *method, const char *url, void (*handler)(HttpRequ
   }
 
   // Else add it
-  mappings = realloc(mappings, (nMappings + 1) * sizeof(UrlMapping *));
-  mappings[nMappings] = mapping;
+  handlerMappings = realloc(handlerMappings, (nMappings + 1) * sizeof(HandlerMapping *));
+  handlerMappings[nMappings] = mapping;
   nMappings++;
+
+  return 0;
+}
+
+int WT_add_webpage(const char *url, const char *filepath)
+{
+  // TODO choose failure codes later
+
+  // Create mapping
+  PageMapping *mapping = create_page_mapping(url, filepath);
+
+  // Check if mapping already exists
+  for(int i = 0 ; i < nPages; i ++)
+  {
+    if(strcmp(pageMappings[i]->url, url) == 0)
+    {
+      // If exists return failure
+      char error[256];
+      snprintf(error, sizeof(error), "Could not add mapping from: %s to: %s.\n\tMapping for this url already exists.\n", url, filepath);
+      WT_log_error(error);
+      return -1;
+    }
+  }
+
+  // Else add it
+  pageMappings = realloc(pageMappings, (nPages + 1) * sizeof(PageMapping *));
+  pageMappings[nPages] = mapping;
+  nPages++;
 
   return 0;
 }
 
 int WT_add_webpages(const char *path)
 {
-  // TODO implement
-
-
+  // TODO implement this.
   return 0;
 }
 
@@ -350,11 +378,29 @@ void * worker_thread(void *)
     }
 
     bool matchFound = false;
+    for(int i = 0 ; i < nPages; i++)
+    {
+      if(strcmp(pageMappings[i]->url, request->url) == 0)
+      {
+        WT_send_page(request->client_fd, 200, pageMappings[i]->filepath);
+
+        matchFound = true;
+        break;
+      }
+    }
+
+    // No need to check handler mappings if page mapping found
+    if(matchFound)
+    {
+      delete_request(request);
+      continue;
+    }
+
     for(int i = 0; i < nMappings; i++)
     {
-      if(regexec(&mappings[i]->regex, request->url, 0, NULL, 0) == 0)
+      if(regexec(&handlerMappings[i]->regex, request->url, 0, NULL, 0) == 0)
       {
-        mappings[i]->handler(request);
+        handlerMappings[i]->handler(request);
 
         matchFound = true;
         break;
@@ -445,11 +491,6 @@ const char * status_str(const int status)
   }
 
   return NULL;
-}
-
-void send_page(HttpRequest *request)
-{
-  WT_send_page(request->client_fd, 200, request->url);
 }
 
 void WT_set_error_file(const char *filepath)

@@ -1,7 +1,7 @@
 #ifndef WT_SERVER_H
 #define WT_SERVER_H
 
-#include "UrlMapping.h"
+#include "HttpRequest.h"
 
 #define WT_GET     "GET"
 #define WT_POST    "POST"
@@ -18,6 +18,7 @@ int WT_init(const int port);
 int WT_shutdown();
 
 int WT_add_mapping(const char *method, const char *url, void (*handler)(HttpRequest *));
+int WT_add_webpage(const char *url, const char *filepath);
 int WT_add_webpages(const char *path);
 
 int WT_send_status(const int dest_fd, const int code);
