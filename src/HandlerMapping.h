@@ -5,7 +5,6 @@
 
 #include <regex.h>
 
-// TODO rename handler mapping or something
 typedef struct HandlerMapping
 {
 	char *url;
@@ -14,6 +13,6 @@ typedef struct HandlerMapping
 } HandlerMapping;
 
 HandlerMapping * create_handler_mapping(const char *method, const char *url, void (*handler)(HttpRequest *));
-void delete_handler_mapping(HandlerMapping *);
+void delete_handler_mapping(HandlerMapping *this);
 
 #endif
