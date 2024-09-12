@@ -21,6 +21,9 @@ typedef struct RequestNode
   RequestNode *next;
 } RequestNode;
 
+static const char *OK = "OK";
+static const char *NOT_FOUND = "Not Found";
+
 static int server_fd;
 static bool running;
 
@@ -35,6 +38,8 @@ static pthread_t listenThread;
 static pthread_t *threadPool;
 static int nThreads;
 
+static int loggingFile = 1; // stdout
+
 void * listen_thread(void *);
 void * worker_thread(void *);
 
@@ -46,7 +51,9 @@ static RequestNode *queueTail = NULL;
 void enqueue_request(HttpRequest *request);
 HttpRequest * dequeue_request();
 
-char * status_str(const int status);
+const char * status_str(const int status);
+
+void send_page(HttpRequest *request);
 
 /**
  * @brief 
@@ -171,6 +178,9 @@ int WT_add_mapping(const char *method, const char *url, void (*handler)(HttpRequ
     if(strcmp(mappings[i]->url, mapping->url) == 0)
     {
       // If exists return failure
+      char error[256];
+      snprintf(error, sizeof(error), "Could not add mapping for: %s\n\tMapping for this url already exists.\n", url);
+      WT_log_error(error);
       return -1;
     }
   }
@@ -186,35 +196,23 @@ int WT_add_mapping(const char *method, const char *url, void (*handler)(HttpRequ
 int WT_add_webpages(const char *path)
 {
   // TODO implement
+
+
   return 0;
 }
 
 int WT_send_status(const int dest_fd, const int code)
 {
-  // TODO add more status codes
-  // TODO maybe move this to a new function for resue purposes
-  char *statusMsg = NULL;
-  if(code == 200)
-  {
-    statusMsg = "OK";
-  } else if(code == 404)
-  {
-    statusMsg = "Not Found";
-  } else 
-  {
-    statusMsg = "Error, unknown status code";
-  }
-
   char response[256];
   int responseLength = snprintf(response, sizeof(response),
     "HTTP/1.2 %d %s\r\nContent-Length: 0\r\n\r\n",
     code,
-    statusMsg
+    status_str(code)
   );
 
   if(send(dest_fd, response, responseLength, 0) == -1)
   {
-    // TODO log error
+    WT_log_error("Failed to send status to client.\n");
     return -1;
   }
 
@@ -228,39 +226,25 @@ int WT_send_msg(const int dest_fd, const int code, const char *msg)
 
 int WT_send_data(const int dest_fd, const int code, const char *data, const char *dataType, const int length)
 {
-  // TODO add more status codes
-  // TODO maybe move this to a new function for resue purposes
-  char *statusMsg = NULL;
-  if(code == 200)
-  {
-    statusMsg = "OK";
-  } else if(code == 404)
-  {
-    statusMsg = "Not Found";
-  } else 
-  {
-    statusMsg = "Error, unknown status code";
-  }
-
   // TODO does this work? Or does it need more
   char response[256];
   int responseLength = snprintf(response, sizeof(response), 
     "HTTP/1.2 %d %s\r\nContent-Length: %d\r\nContent-Type: %s\r\n\r\n",
     code,
-    statusMsg,
+    status_str(code),
     length,
     dataType   
   );
 
   if(send(dest_fd, response, responseLength, 0) == -1)
   {
-    // TODO log error
+    WT_log_error("Failed to send data to client.\n\tFailed on start of message.\n");
     return -1;
   } 
   
   if(send(dest_fd, data, length, 0) == -1)
   {
-    // TODO log error
+    WT_log_error("Failed to send data to client.\n\tFailed on body of message.\n");
     return -1;
   }
 
@@ -274,20 +258,6 @@ int WT_send_page(const int dest_fd, const int code, const char *filepath)
 
 int WT_send_file(const int dest_fd, const int code, const char *filepath, const char *filetype)
 {
-  // TODO add more status codes
-  // TODO maybe move this to a new function for resue purposes
-  char *statusMsg = NULL;
-  if(code == 200)
-  {
-    statusMsg = "OK";
-  } else if(code == 404)
-  {
-    statusMsg = "Not Found";
-  } else 
-  {
-    statusMsg = "Error, unknown status code";
-  }
-
   // Get size of file
   int fd = open(filepath, O_RDONLY);
   struct stat fileStat;
@@ -298,7 +268,7 @@ int WT_send_file(const int dest_fd, const int code, const char *filepath, const 
   int responseLength = snprintf(response, sizeof(response), 
     "HTTP/1.2 %d %s\r\nContent-Length: %ld\r\nContent-Type: %s\r\n\r\n",
     code,
-    statusMsg,
+    status_str(code),
     fileStat.st_size,
     filetype  
   );
@@ -307,7 +277,7 @@ int WT_send_file(const int dest_fd, const int code, const char *filepath, const 
   {
     close(fd);
 
-    // TODO log error
+    WT_log_error("Failed to send file to client.\n\tFailed on start of message.\n");
     return -1;
   }
 
@@ -315,7 +285,7 @@ int WT_send_file(const int dest_fd, const int code, const char *filepath, const 
   {
     close(fd);
 
-    // TODO log error
+    WT_log_error("Failed to send file to client.\n\tFailed on file.\n");
     return -1;
   }
 
@@ -335,7 +305,7 @@ void * listen_thread(void *)
     int p = poll(&pfd, 1, 100);
     if(p < 0)
     {
-      // TODO log error
+      WT_log_error("Failed to poll socket.\n");
       continue;
     } else if(p == 0)
     {
@@ -379,10 +349,6 @@ void * worker_thread(void *)
       continue;
     }
 
-    // printf("Incoming request\n");
-    // printf("  url:    %s\n", request->url);
-    // printf("  method: %s\n", request->method);
-
     bool matchFound = false;
     for(int i = 0; i < nMappings; i++)
     {
@@ -394,17 +360,6 @@ void * worker_thread(void *)
         break;
       }
     }
-
-    // char *response = "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n";
-    // int bytesSent = send(request->client_fd, response, strlen(response), 0);
-    // if(bytesSent < 0)
-    // {
-    //   printf("Error sending response\n");
-    // }
-
-    // WT_send_status(request->client_fd, 200);
-    // WT_send_msg(request->client_fd, 200, "Hello world!");
-    // WT_send_page(request->client_fd, 200, "resources/test.html");
 
     if(!matchFound)
     {
@@ -475,8 +430,41 @@ HttpRequest * dequeue_request()
   return request;
 }
 
-char * status_str(const int status)
+/**
+ * @brief Returns the appropiate status code message for
+ * 
+ * @param status 
+ * @return const char* This pointer is owned by the function, do not call free
+ */
+const char * status_str(const int status)
 {
-  // TODO implement
+  // TODO add more statuses
+  if(status == 200)
+  {
+    return OK;
+  }
+
   return NULL;
+}
+
+void send_page(HttpRequest *request)
+{
+  WT_send_page(request->client_fd, 200, request->url);
+}
+
+void WT_set_error_file(const char *filepath)
+{
+  int fd = open(filepath, O_WRONLY);
+  if(fd == -1)
+  {
+    char error[256];
+    snprintf(error, sizeof(error), "Cannot set output file to: %s\n\tCould not open file.\n", filepath);
+
+    WT_log_error(error);
+  }
+}
+
+void WT_log_error(const char *error)
+{
+  write(loggingFile, error, strlen(error));
 }

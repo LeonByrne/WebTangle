@@ -26,4 +26,7 @@ int WT_send_data(const int dest_fd, const int code, const char *data, const char
 int WT_send_page(const int dest_fd, const int code, const char *filepath);
 int WT_send_file(const int dest_fd, const int code, const char *filepath, const char *filetype);
 
+void WT_set_error_file(const char *filepath);
+void WT_log_error(const char *error);
+
 #endif
