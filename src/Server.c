@@ -379,10 +379,21 @@ void * worker_thread(void *)
       continue;
     }
 
-    // TODO resolve method/url to handler and pass data along
-    printf("Incoming request\n");
-    printf("  url:    %s\n", request->url);
-    printf("  method: %s\n", request->method);
+    // printf("Incoming request\n");
+    // printf("  url:    %s\n", request->url);
+    // printf("  method: %s\n", request->method);
+
+    bool matchFound = false;
+    for(int i = 0; i < nMappings; i++)
+    {
+      if(regexec(&mappings[i]->regex, request->url, 0, NULL, 0) == 0)
+      {
+        mappings[i]->handler(request);
+
+        matchFound = true;
+        break;
+      }
+    }
 
     // char *response = "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n";
     // int bytesSent = send(request->client_fd, response, strlen(response), 0);
@@ -393,7 +404,12 @@ void * worker_thread(void *)
 
     // WT_send_status(request->client_fd, 200);
     // WT_send_msg(request->client_fd, 200, "Hello world!");
-    WT_send_page(request->client_fd, 200, "resources/test.html");
+    // WT_send_page(request->client_fd, 200, "resources/test.html");
+
+    if(!matchFound)
+    {
+      WT_send_status(request->client_fd, 404);
+    }
 
     delete_request(request);
   }
