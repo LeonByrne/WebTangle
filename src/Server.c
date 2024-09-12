@@ -30,7 +30,6 @@ static const char *NOT_FOUND = "Not Found";
 static int server_fd;
 static bool running;
 
-// TODO enusre cleanup is performed
 static PageMapping **pageMappings = NULL;
 static int nPages = 0;
 
@@ -136,6 +135,12 @@ int WT_shutdown()
   }
 
   // Free mappings
+  for(int i = 0; i < nPages; i++)
+  {
+    delete_page_mapping(pageMappings[i]);
+  }
+  free(pageMappings);
+
   for(int i = 0; i < nMappings; i++)
   {
     delete_handler_mapping(handlerMappings[i]);
