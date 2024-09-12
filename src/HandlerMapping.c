@@ -1,4 +1,4 @@
-#include "UrlMapping.h"
+#include "HandlerMapping.h"
 
 #include <malloc.h>
 #include <string.h>
@@ -65,11 +65,11 @@ char * url_to_regex(const char *url)
  * @param handler 
  * @return UrlMapping* returns NULL on failure, valid pointer on success
  */
-UrlMapping * create_mapping(const char *method, const char *url, void (*handler)(HttpRequest *))
+HandlerMapping * create_handler_mapping(const char *method, const char *url, void (*handler)(HttpRequest *))
 {
 	// TODO use method, add to regex. If no method given allow all methods
 
-	UrlMapping *this = malloc(sizeof(UrlMapping));
+	HandlerMapping *this = malloc(sizeof(HandlerMapping));
 
 	// Allocate space and copy url string
 	this->url = malloc(strlen(url) + 1);
@@ -79,7 +79,7 @@ UrlMapping * create_mapping(const char *method, const char *url, void (*handler)
 	char *regStr = url_to_regex(url);
 	if(regcomp(&this->regex, regStr, REG_EXTENDED) != 0)
 	{
-		delete_mapping(this);
+		delete_handler_mapping(this);
 		free(regStr);
 		return NULL;
 	}
@@ -97,7 +97,7 @@ UrlMapping * create_mapping(const char *method, const char *url, void (*handler)
  * 
  * @param this 
  */
-void delete_mapping(UrlMapping *this)
+void delete_handler_mapping(HandlerMapping *this)
 {
 	free(this->url);
 	regfree(&this->regex);
