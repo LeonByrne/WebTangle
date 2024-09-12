@@ -32,6 +32,8 @@ int main()
 	WT_add_mapping("GET", "/handler", handler_test);
 	WT_add_mapping("GET", "/var/{string}", path_varibale_test);
 
+	WT_add_webpage("/test", "resources/test.html");
+
 	sleep(600);
 
 	WT_shutdown();
