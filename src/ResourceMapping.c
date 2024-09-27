@@ -37,6 +37,24 @@ ResourceMapping *create_resource_mapping(const char * url, const char *filepath)
     if(strcmp(extensionPos, "txt") == 0)
     {
       this->contentType = strdup("text/plain");
+    } else if(strcmp(extensionPos, "css") == 0)
+    {
+      this->contentType = strdup("text/css");
+    } else if(strcmp(extensionPos, "js") == 0)
+    {
+      this->contentType = strdup("application/javascript");
+    } else if(strcmp(extensionPos, "jpeg") == 0 || strcmp(extensionPos, "jpg") == 0) 
+    {
+      this->contentType = strdup("image/jpeg");
+    } else if(strcmp(extensionPos, "png") == 0)
+    {
+      this->contentType = strdup("image/png");
+    } else if(strcmp(extensionPos, "mp3") == 0)
+    {
+      this->contentType = strdup("audio/mpeg");
+    } else
+    {
+      this->contentType = strdup("unknown");
     }
   }
 
