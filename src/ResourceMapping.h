@@ -5,7 +5,6 @@ typedef struct ResourceMapping
 {
   char *url;
   char *filepath;
-  int size;
 
   char *contentType;
 } ResourceMapping;

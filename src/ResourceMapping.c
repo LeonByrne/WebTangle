@@ -11,21 +11,18 @@
 
 ResourceMapping *create_resource_mapping(const char * url, const char *filepath)
 {
+  // CHeck that file exists
   int fd = open(filepath, O_RDONLY);
   if(fd < 0)
   {
     return NULL;
   }
+  close(fd);
 
   ResourceMapping *this = malloc(sizeof(ResourceMapping));
 
   this->url = strdup(url);
-
   this->filepath = strdup(filepath);
-
-  struct stat fileStat;
-  fstat(fd, &fileStat);
-  this->size = fileStat.st_size;
 
   // TODO move to new function?
   char *extensionPos = strrchr(filepath, '.');
@@ -42,8 +39,6 @@ ResourceMapping *create_resource_mapping(const char * url, const char *filepath)
       this->contentType = strdup("text/plain");
     }
   }
-
-  close(fd);
 
   return this;
 }
