@@ -447,13 +447,20 @@ void * worker_thread(void *)
     bool matchFound = false;
     for(int i = 0 ; i < nPages; i++)
     {
-      if(strcmp(pageMappings[i]->url, request->url) == 0)
+      if(regexec(&pageMappings[i]->regex, request->url, 0, NULL, 0) == 0)
       {
         WT_send_page(request->client_fd, 200, pageMappings[i]->filepath);
 
         matchFound = true;
         break;
       }
+    }
+    
+    // No need to check resource mappings if page mapping found
+    if(matchFound)
+    {
+      delete_request(request);
+      continue;
     }
 
     for(int i = 0 ; i < nResources; i++)
@@ -467,7 +474,7 @@ void * worker_thread(void *)
       }
     }
 
-    // No need to check handler mappings if page mapping found
+    // No need to check handler mappings if resource mapping found
     if(matchFound)
     {
       delete_request(request);
