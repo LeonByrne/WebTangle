@@ -15,6 +15,7 @@
 
 #include "PageMapping.h"
 #include "HandlerMapping.h"
+#include "ResourceMapping.h"
 
 typedef struct RequestNode RequestNode;
 
@@ -64,6 +65,10 @@ static bool running;
 
 static PageMapping **pageMappings = NULL;
 static int nPages = 0;
+
+// TODO be sure to free these
+static ResourceMapping **resourceMappings = NULL;
+static int nResources = 0;
 
 static HandlerMapping **handlerMappings = NULL;
 static int nMappings = 0;
@@ -240,7 +245,7 @@ int WT_add_webpage(const char *url, const char *filepath)
   PageMapping *mapping = create_page_mapping(url, filepath);
 
   // Check if mapping already exists
-  for(int i = 0 ; i < nPages; i ++)
+  for(int i = 0 ; i < nPages; i++)
   {
     if(strcmp(pageMappings[i]->url, url) == 0)
     {
@@ -260,7 +265,30 @@ int WT_add_webpage(const char *url, const char *filepath)
   return 0;
 }
 
-int WT_add_webpages(const char *path)
+int WT_add_file(const char *url, const char *filepath)
+{
+  ResourceMapping *mapping = create_resource_mapping(url, filepath);
+
+  for(int i = 0 ; i < nResources; i++)
+  {
+    if(strcmp(resourceMappings[i]->url, url) == 0)
+    {
+      // If exists return failure
+      char error[256];
+      snprintf(error, sizeof(error), "Could not add mapping from: %s to: %s.\n\tMapping for this url already exists.\n", url, filepath);
+      WT_log_error(error);
+      return -1;
+    }
+  }
+
+  resourceMappings = realloc(resourceMappings, (nResources + 1) * sizeof(ResourceMapping *));
+  resourceMappings[nResources] = mapping;
+  nResources++;
+
+  return 0;
+}
+
+int WT_add_files(const char *path)
 {
   // TODO implement this.
   return 0;
@@ -422,6 +450,17 @@ void * worker_thread(void *)
       if(strcmp(pageMappings[i]->url, request->url) == 0)
       {
         WT_send_page(request->client_fd, 200, pageMappings[i]->filepath);
+
+        matchFound = true;
+        break;
+      }
+    }
+
+    for(int i = 0 ; i < nResources; i++)
+    {
+      if(strcmp(resourceMappings[i]->url, request->url) == 0)
+      {
+        WT_send_file(request->client_fd, 200, resourceMappings[i]->filepath, resourceMappings[i]->contentType);
 
         matchFound = true;
         break;
