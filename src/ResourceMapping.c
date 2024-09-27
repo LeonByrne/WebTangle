@@ -45,5 +45,9 @@ ResourceMapping *create_resource_mapping(const char * url, const char *filepath)
 
 void delete_resource_mapping(ResourceMapping *this)
 {
+  free(this->url);
+  free(this->filepath);
+  free(this->contentType);
 
+  free(this);
 }
