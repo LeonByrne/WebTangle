@@ -92,6 +92,8 @@ HttpRequest * dequeue_request();
 
 const char * status_str(const int status);
 
+static bool check_url_collision(const char *url);
+
 /**
  * @brief 
  * 
@@ -215,18 +217,15 @@ int WT_add_mapping(const char *method, const char *url, void (*handler)(HttpRequ
     return -1;
   }
 
-  // Check if mapping already exists
-  for(int i = 0; i < nMappings; i++)
+  // Check to see if url is in use already
+  if(check_url_collision(url))
   {
-    // TODO account for different methods later
-    if(strcmp(handlerMappings[i]->url, mapping->url) == 0)
-    {
-      // If exists return failure
-      char error[256];
-      snprintf(error, sizeof(error), "Could not add mapping for: %s\n\tMapping for this url already exists.\n", url);
-      WT_log_error(error);
-      return -1;
-    }
+    // If exists return failure
+    char error[256];
+    snprintf(error, sizeof(error), "Could not add mapping for: %s\n\tMapping for this url already exists.\n", url);
+    WT_log_error(error);
+    
+    return -1;
   }
 
   // Else add it
@@ -244,17 +243,15 @@ int WT_add_webpage(const char *url, const char *filepath)
   // Create mapping
   PageMapping *mapping = create_page_mapping(url, filepath);
 
-  // Check if mapping already exists
-  for(int i = 0 ; i < nPages; i++)
+  // Check to see if url is in use already
+  if(check_url_collision(url))
   {
-    if(strcmp(pageMappings[i]->url, url) == 0)
-    {
-      // If exists return failure
-      char error[256];
-      snprintf(error, sizeof(error), "Could not add mapping from: %s to: %s.\n\tMapping for this url already exists.\n", url, filepath);
-      WT_log_error(error);
-      return -1;
-    }
+    // If exists return failure
+    char error[256];
+    snprintf(error, sizeof(error), "Could not add mapping from: %s to: %s.\n\tMapping for this url already exists.\n", url, filepath);
+    WT_log_error(error);
+    
+    return -1;
   }
 
   // Else add it
@@ -269,16 +266,15 @@ int WT_add_file(const char *url, const char *filepath)
 {
   ResourceMapping *mapping = create_resource_mapping(url, filepath);
 
-  for(int i = 0 ; i < nResources; i++)
+  // Check to see if url is in use already
+  if(check_url_collision(url))
   {
-    if(strcmp(resourceMappings[i]->url, url) == 0)
-    {
-      // If exists return failure
-      char error[256];
-      snprintf(error, sizeof(error), "Could not add mapping from: %s to: %s.\n\tMapping for this url already exists.\n", url, filepath);
-      WT_log_error(error);
-      return -1;
-    }
+    // If exists return failure
+    char error[256];
+    snprintf(error, sizeof(error), "Could not add mapping from: %s to: %s.\n\tMapping for this url already exists.\n", url, filepath);
+    WT_log_error(error);
+    
+    return -1;
   }
 
   resourceMappings = realloc(resourceMappings, (nResources + 1) * sizeof(ResourceMapping *));
@@ -676,6 +672,42 @@ const char * status_str(const int status)
   default:
     return NULL;
   }
+}
+
+/**
+ * @brief Checks to see if a given url is already mapped to.
+ * 
+ * @param url 
+ * @return true  A collision took place
+ * @return false No collision
+ */
+bool check_url_collision(const char *url)
+{
+  for(int i = 0; i < nMappings; i++)
+  {
+    if(regexec(&handlerMappings[i]->regex, url, 0, NULL, 0) == 0)
+    {
+      return true;
+    }
+  }
+
+  for(int i = 0; i < nPages; i++)
+  {
+    if(regexec(&pageMappings[i]->regex, url, 0, NULL, 0) == 0)
+    {
+      return true;
+    }
+  }
+
+  for(int i = 0; i < nResources; i++)
+  {
+    if(strcmp(resourceMappings[i]->url, url) == 0)
+    {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 void WT_set_error_file(const char *filepath)
