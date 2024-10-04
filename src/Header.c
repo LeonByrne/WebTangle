@@ -1,7 +1,12 @@
 #include "Header.h"
 
+// This will allow strdup to be defined.
+#define _POSIX_C_SOURCE 200809L
+
+#include <string.h>
+
 /**
- * @brief Create a header object, takes ownership of the provided strings
+ * @brief Create a header object, keeps copies of the given strings
  * 
  * @param name 
  * @param value 
@@ -11,8 +16,8 @@ Header * create_header(const char *name, const char *value)
 {
   Header *this = malloc(sizeof(Header));
 
-  this->name = name;
-  this->value = value;
+  this->name = strdup(name);
+  this->value = strdup(value);
 
   this->length = strlen(name) + strlen(": ") + strlen(value) + strlen("\r\n");
 
