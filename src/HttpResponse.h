@@ -1,17 +1,7 @@
 #ifndef WT_HTTP_RESPONSE_H
 #define WT_HTTP_RESPONSE_H
 
-// TODO can move this to another file later
-typedef struct Header
-{
-  char *name;
-  char *value;
-
-  int length;
-} Header;
-
-Header * create_header(const char *name, const char *value);
-void delete_header(Header *this);
+#include "Header.h"
 
 typedef struct HttpResponse
 {
