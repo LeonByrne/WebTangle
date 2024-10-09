@@ -32,7 +32,6 @@ static bool running;
 static PageMapping **pageMappings = NULL;
 static int nPages = 0;
 
-// TODO be sure to free these
 static ResourceMapping **resourceMappings = NULL;
 static int nResources = 0;
 
@@ -149,6 +148,12 @@ int WT_shutdown()
     delete_handler_mapping(handlerMappings[i]);
   }
   free(handlerMappings);
+
+  for(int i = 0; i < nResources; i++)
+  {
+    delete_resource_mapping(resourceMappings[i]);
+  }
+  free(resourceMappings);
 
   // Free Request Queue, it should now contain only dummy requests
   while(queueHead != NULL)
