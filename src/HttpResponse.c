@@ -3,6 +3,9 @@
 #include <malloc.h>
 #include <string.h>
 
+#include <unistd.h>
+#include <arpa/inet.h>
+
 // 2xx status codes
 static const char *OK = "OK";
 static const char *CREATED = "Created";
@@ -45,7 +48,7 @@ static const char *IM_A_TEAPOT = "I'm A Teapot";
  * @param status 
  * @return const char* This pointer is owned by the function, do not call free
  */
-const char * status_str(const int status)
+static const char * status_str(const int status)
 {
   // TODO when more statuses are added include them in the space provided
   switch (status)
@@ -164,6 +167,8 @@ HttpResponse * create_response(const int dest_fd, const int statusCode)
   this->headers = NULL;
   this->nHeaders = 0;
   this->headerSize = 0;
+
+  return this;
 }
 
 void delete_response(HttpResponse *this)
@@ -198,15 +203,22 @@ void response_add_header(HttpResponse *this, const char *name, const char *value
 }
 
 /**
- * @brief Makes all of the response bar the body
+ * @brief Turns the response in a string.
  * 
  * @param this 
- * @return char* 
+ * @param contentLength The length of the content that will follow this
+ * @param contentType   The type of the content or NULL if has none
+ * @param size          Where to write the length of the result
+ * @return char*        The result as a string
  */
-char *response_to_message(HttpResponse *this, const int statusCode, const int contentLength, const char *contentType)
+char *response_to_message(HttpResponse *this, const int contentLength, const char *contentType, int *size)
 {
   // TODO maybe work out the message length precisely. Not needed now, eyeball it
   char *msg = malloc(256 + this->headerSize);
+  if(msg == NULL)
+  {
+    return NULL;
+  }
 
   // TODO implement this logic
   // Copy in the required start, no type if NULL
@@ -216,8 +228,8 @@ char *response_to_message(HttpResponse *this, const int statusCode, const int co
     // No contentType
     len = snprintf(msg, 256 + this->headerSize,
       "HTTP/1.2 %d %s\r\nContent-Length: %d\r\n",
-      statusCode,
-      status_str(statusCode),
+      this->statusCode,
+      status_str(this->statusCode),
       contentLength
     );
   } else
@@ -225,8 +237,8 @@ char *response_to_message(HttpResponse *this, const int statusCode, const int co
     // Has a contentType
     len = snprintf(msg, 256 + this->headerSize,
       "HTTP/1.2 %d %s\r\nContent-Length: %d\r\nContent-Type: %s\r\n",
-      statusCode,
-      status_str(statusCode),
+      this->statusCode,
+      status_str(this->statusCode),
       contentLength,
       contentType
     );
@@ -248,5 +260,31 @@ char *response_to_message(HttpResponse *this, const int statusCode, const int co
   // Copy in the last bit to go before the body
   strcpy(headerStart, "\r\n");
 
+  if(size != NULL)
+  {
+    *size = (headerStart - msg) + strlen("\r\n");
+
+    printf("msg size: %d\n", *size);
+    printf("msg: %s\n", msg);
+  }
+
   return msg;
+}
+
+/**
+ * @brief 
+ * 
+ * @param this 
+ * @param contentLength 
+ * @param contentType 
+ * @return int 
+ */
+int send_repsonse(HttpResponse *this, const int contentLength, const char *contentType)
+{
+  int length;
+  char *msg = response_to_message(this, contentLength, contentType, &length);
+  int result = send(this->dest_fd, msg, length, 0);
+  free(msg);
+
+  return result;
 }

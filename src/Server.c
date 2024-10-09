@@ -16,6 +16,7 @@
 #include "PageMapping.h"
 #include "HandlerMapping.h"
 #include "ResourceMapping.h"
+#include "HttpResponse.h"
 
 typedef struct RequestNode RequestNode;
 
@@ -90,7 +91,7 @@ static RequestNode *queueTail = NULL;
 void enqueue_request(HttpRequest *request);
 HttpRequest * dequeue_request();
 
-const char * status_str(const int status);
+static const char * status_str(const int status);
 
 static bool check_url_collision(const char *url);
 
@@ -292,18 +293,14 @@ int WT_add_files(const char *path)
 
 int WT_send_status(const int dest_fd, const int code)
 {
-  char response[256];
-  int responseLength = snprintf(response, sizeof(response),
-    "HTTP/1.2 %d %s\r\nContent-Length: 0\r\n\r\n",
-    code,
-    status_str(code)
-  );
+  HttpResponse *response = create_response(dest_fd, code);
 
-  if(send(dest_fd, response, responseLength, 0) == -1)
+  if(send_repsonse(response, 0, NULL) != 0)
   {
     WT_log_error("Failed to send status to client.\n");
-    return -1;
   }
+
+  delete_response(response);
 
   return 0;
 }
@@ -315,17 +312,8 @@ int WT_send_msg(const int dest_fd, const int code, const char *msg)
 
 int WT_send_data(const int dest_fd, const int code, const char *data, const char *dataType, const int length)
 {
-  // TODO does this work? Or does it need more
-  char response[256];
-  int responseLength = snprintf(response, sizeof(response), 
-    "HTTP/1.2 %d %s\r\nContent-Length: %d\r\nContent-Type: %s\r\n\r\n",
-    code,
-    status_str(code),
-    length,
-    dataType   
-  );
-
-  if(send(dest_fd, response, responseLength, 0) == -1)
+  HttpResponse *response = create_response(dest_fd, code);
+  if(send_repsonse(response, length, dataType) == -1)
   {
     WT_log_error("Failed to send data to client.\n\tFailed on start of message.\n");
     return -1;
@@ -559,13 +547,15 @@ HttpRequest * dequeue_request()
   return request;
 }
 
+
+// TODO move to utils or something
 /**
  * @brief Returns the appropiate status code message for
  * 
  * @param status 
  * @return const char* This pointer is owned by the function, do not call free
  */
-const char * status_str(const int status)
+static const char * status_str(const int status)
 {
   // TODO when more statuses are added include them in the space provided
   switch (status)
