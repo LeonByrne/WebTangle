@@ -291,35 +291,30 @@ int WT_add_files(const char *path)
   return 0;
 }
 
-int WT_send_status(const int dest_fd, const int code)
+int WT_send_status(HttpResponse *response)
 {
-  HttpResponse *response = create_response(dest_fd, code);
-
   if(send_repsonse(response, 0, NULL) != 0)
   {
     WT_log_error("Failed to send status to client.\n");
   }
 
-  delete_response(response);
-
   return 0;
 }
 
-int WT_send_msg(const int dest_fd, const int code, const char *msg)
+int WT_send_msg(HttpResponse *response, const char *msg)
 {
-  return WT_send_data(dest_fd, code, msg, "text/plain", strlen(msg));
+  return WT_send_data(response, msg, "text/plain", strlen(msg));
 }
 
-int WT_send_data(const int dest_fd, const int code, const char *data, const char *dataType, const int length)
+int WT_send_data(HttpResponse *response, const char *data, const char *dataType, const int length)
 {
-  HttpResponse *response = create_response(dest_fd, code);
   if(send_repsonse(response, length, dataType) == -1)
   {
     WT_log_error("Failed to send data to client.\n\tFailed on start of message.\n");
     return -1;
   } 
   
-  if(send(dest_fd, data, length, 0) == -1)
+  if(send(response->dest_fd, data, length, 0) == -1)
   {
     WT_log_error("Failed to send data to client.\n\tFailed on body of message.\n");
     return -1;
@@ -328,29 +323,19 @@ int WT_send_data(const int dest_fd, const int code, const char *data, const char
   return 0;
 }
 
-int WT_send_page(const int dest_fd, const int code, const char *filepath)
+int WT_send_page(HttpResponse *response, const char *filepath)
 {
-  return WT_send_file(dest_fd, code, filepath, "text/html");
+  return WT_send_file(response, filepath, "text/html");
 }
 
-int WT_send_file(const int dest_fd, const int code, const char *filepath, const char *filetype)
+int WT_send_file(HttpResponse *response, const char *filepath, const char *filetype)
 {
   // Get size of file
   int fd = open(filepath, O_RDONLY);
   struct stat fileStat;
   fstat(fd, &fileStat);
 
-  // TODO does this work? Or does it need more
-  char response[256];
-  int responseLength = snprintf(response, sizeof(response), 
-    "HTTP/1.2 %d %s\r\nContent-Length: %ld\r\nContent-Type: %s\r\n\r\n",
-    code,
-    status_str(code),
-    fileStat.st_size,
-    filetype  
-  );
-
-  if(send(dest_fd, response, responseLength, 0) == -1)
+  if(send_repsonse(response, fileStat.st_size, filetype) != 0)
   {
     close(fd);
 
@@ -358,7 +343,7 @@ int WT_send_file(const int dest_fd, const int code, const char *filepath, const 
     return -1;
   }
 
-  if(sendfile(dest_fd, fd, NULL, fileStat.st_size) == -1)
+  if(sendfile(response->dest_fd, fd, NULL, fileStat.st_size) == -1)
   {
     close(fd);
 
@@ -433,7 +418,12 @@ void * worker_thread(void *)
     {
       if(regexec(&pageMappings[i]->regex, request->url, 0, NULL, 0) == 0)
       {
-        WT_send_page(request->client_fd, 200, pageMappings[i]->filepath);
+        // TODO could be const
+        HttpResponse *response = create_response(request->client_fd, 200);
+
+        WT_send_page(response, pageMappings[i]->filepath);
+
+        delete_response(response);
 
         matchFound = true;
         break;
@@ -451,7 +441,11 @@ void * worker_thread(void *)
     {
       if(strcmp(resourceMappings[i]->url, request->url) == 0)
       {
-        WT_send_file(request->client_fd, 200, resourceMappings[i]->filepath, resourceMappings[i]->contentType);
+        HttpResponse *response = create_response(request->client_fd, 200);
+
+        WT_send_file(response, resourceMappings[i]->filepath, resourceMappings[i]->contentType);
+
+        delete_response(response);
 
         matchFound = true;
         break;
@@ -478,7 +472,10 @@ void * worker_thread(void *)
 
     if(!matchFound)
     {
-      WT_send_status(request->client_fd, 404);
+      // Could be const
+      HttpResponse *response = create_response(request->client_fd, 404);
+      WT_send_status(response);
+      delete_response(response);
     }
 
     delete_request(request);

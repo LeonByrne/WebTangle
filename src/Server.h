@@ -5,7 +5,7 @@
 #define _POSIX_C_SOURCE 200809L
 
 #include "HttpRequest.h"
-
+#include "HttpResponse.h"
 
 #define WT_METHOD_ANY     0
 
@@ -26,11 +26,17 @@ int WT_add_webpage(const char *url, const char *filepath);
 int WT_add_file(const char *url, const char *filepath);
 int WT_add_files(const char *path);
 
-int WT_send_status(const int dest_fd, const int code);
-int WT_send_msg(const int dest_fd, const int code, const char *msg);
-int WT_send_data(const int dest_fd, const int code, const char *data, const char *dataType, const int length);
-int WT_send_page(const int dest_fd, const int code, const char *filepath);
-int WT_send_file(const int dest_fd, const int code, const char *filepath, const char *filetype);
+int WT_send_status(HttpResponse *response);
+int WT_send_msg(HttpResponse *response, const char *msg);
+int WT_send_data(HttpResponse *response, const char *data, const char *dataType, const int length);
+int WT_send_page(HttpResponse *response, const char *filepath);
+int WT_send_file(HttpResponse *response, const char *filepath, const char *fileType);
+
+// int WT_send_status(const int dest_fd, const int code);
+// int WT_send_msg(const int dest_fd, const int code, const char *msg);
+// int WT_send_data(const int dest_fd, const int code, const char *data, const char *dataType, const int length);
+// int WT_send_page(const int dest_fd, const int code, const char *filepath);
+// int WT_send_file(const int dest_fd, const int code, const char *filepath, const char *filetype);
 
 void WT_set_error_file(const char *filepath);
 void WT_log_error(const char *error);
