@@ -256,7 +256,7 @@ int WT_add_files(const char *path)
 
 int WT_send_status(HttpResponse *response)
 {
-  if(send_repsonse(response, 0, NULL) != 0)
+  if(send_repsonse(response, 0, NULL) == 0)
   {
     WT_log_error("Failed to send status to client.\n");
   }
@@ -298,7 +298,7 @@ int WT_send_file(HttpResponse *response, const char *filepath, const char *filet
   struct stat fileStat;
   fstat(fd, &fileStat);
 
-  if(send_repsonse(response, fileStat.st_size, filetype) != 0)
+  if(send_repsonse(response, fileStat.st_size, filetype) == -1)
   {
     close(fd);
 
