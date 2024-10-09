@@ -386,7 +386,7 @@ void * worker_thread(void *)
     {
       if(regexec(&pageMappings[i]->regex, request->url, 0, NULL, 0) == 0)
       {
-        // TODO could be const
+        // TODO could be const, some others too
         HttpResponse *response = create_response(request->client_fd, 200);
 
         WT_send_page(response, pageMappings[i]->filepath);

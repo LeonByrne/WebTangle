@@ -213,14 +213,13 @@ void response_add_header(HttpResponse *this, const char *name, const char *value
  */
 char *response_to_message(HttpResponse *this, const int contentLength, const char *contentType, int *size)
 {
-  // TODO maybe work out the message length precisely. Not needed now, eyeball it
+  // The extra 256 bytes is good enough for now and probaly forever.
   char *msg = malloc(256 + this->headerSize);
   if(msg == NULL)
   {
     return NULL;
   }
 
-  // TODO implement this logic
   // Copy in the required start, no type if NULL
   int len;
   if(contentType == NULL)
