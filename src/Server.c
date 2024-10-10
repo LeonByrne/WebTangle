@@ -212,12 +212,23 @@ int WT_add_mapping(const char *method, const char *url, void (*handler)(HttpRequ
   return 0;
 }
 
+/**
+ * @brief Adds a mapping from a url to a webpage.
+ * 
+ * @param url 
+ * @param filepath 
+ * @return int     0 on success, -1 if mapping couldn't be made, -2 if url is in use.
+ */
 int WT_add_webpage(const char *url, const char *filepath)
 {
-  // TODO choose failure codes later
-
   // Create mapping
   PageMapping *mapping = create_page_mapping(url, filepath);
+
+  // Check if mapping was made correctly
+  if(mapping == NULL)
+  {
+    return -1;
+  }
 
   // Check to see if url is in use already
   if(check_url_collision(url))
@@ -227,7 +238,7 @@ int WT_add_webpage(const char *url, const char *filepath)
     snprintf(error, sizeof(error), "Could not add mapping from: %s to: %s.\n\tMapping for this url already exists.\n", url, filepath);
     WT_log_error(error);
     
-    return -1;
+    return -2;
   }
 
   // Else add it
