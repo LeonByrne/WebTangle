@@ -213,17 +213,6 @@ void response_add_header(HttpResponse *this, const char *name, const char *value
  */
 char *response_to_message(HttpResponse *this, const int contentLength, const char *contentType, int *size)
 {
-  // TODO redo this whole thing
-  for(int i = 0; i < this->nHeaders; i++)
-  {
-    if(this->headers[i]->length != strlen(this->headers[i]->name) + strlen(": ") + strlen(this->headers[i]->value) + strlen("\r\n"))
-    {
-      printf("%s doesn't have the right length.", this->headers[i]->name);
-    }
-  }
-
-  printf("headers: %d, headers total size: %d\n", this->nHeaders, this->headerSize);
-
   // The extra 256 bytes is good enough for now and probaly forever.
   int bufferSize = 256 + this->headerSize;
   char *msg = malloc(bufferSize);
