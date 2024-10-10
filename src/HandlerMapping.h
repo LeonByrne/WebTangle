@@ -7,7 +7,9 @@
 
 typedef struct HandlerMapping
 {
+	const char *method;
 	char *url;
+
 	regex_t regex;
 	void (*handler)(HttpRequest *);
 } HandlerMapping;

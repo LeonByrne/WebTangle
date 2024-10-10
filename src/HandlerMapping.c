@@ -17,10 +17,10 @@
  */
 HandlerMapping * create_handler_mapping(const char *method, const char *url, void (*handler)(HttpRequest *))
 {
-	// TODO use method, add to regex. If no method given allow all methods
-
 	HandlerMapping *this = malloc(sizeof(HandlerMapping));
 
+	// TODO make method case insensitive
+	this->method = strdup(method);
 	this->url = strdup(url);
 
 	// Convert url into regex string, convert string to regex and free regex string
@@ -47,6 +47,7 @@ HandlerMapping * create_handler_mapping(const char *method, const char *url, voi
  */
 void delete_handler_mapping(HandlerMapping *this)
 {
+	free(this->method);
 	free(this->url);
 	regfree(&this->regex);
 

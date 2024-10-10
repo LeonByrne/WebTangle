@@ -55,7 +55,7 @@ static RequestNode *queueTail = NULL;
 void enqueue_request(HttpRequest *request);
 HttpRequest * dequeue_request();
 
-static bool check_url_collision(const char *url);
+static bool check_url_collision(const char *method, const char *url);
 
 /**
  * @brief 
@@ -194,7 +194,7 @@ int WT_add_mapping(const char *method, const char *url, void (*handler)(HttpRequ
   }
 
   // Check to see if url is in use already
-  if(check_url_collision(url))
+  if(check_url_collision(method, url))
   {
     // If exists return failure
     char error[256];
@@ -230,8 +230,8 @@ int WT_add_webpage(const char *url, const char *filepath)
     return -1;
   }
 
-  // Check to see if url is in use already
-  if(check_url_collision(url))
+  // Check to see if url is in use already, all pages are GET
+  if(check_url_collision("GET", url))
   {
     // If exists return failure
     char error[256];
@@ -253,8 +253,8 @@ int WT_add_file(const char *url, const char *filepath)
 {
   ResourceMapping *mapping = create_resource_mapping(url, filepath);
 
-  // Check to see if url is in use already
-  if(check_url_collision(url))
+  // Check to see if url is in use already, all files are GET
+  if(check_url_collision("GET", url))
   {
     // If exists return failure
     char error[256];
@@ -533,17 +533,25 @@ HttpRequest * dequeue_request()
 /**
  * @brief Checks to see if a given url is already mapped to.
  * 
+ * @param method GET, POST, PUT, etc.
  * @param url 
  * @return true  A collision took place
  * @return false No collision
  */
-bool check_url_collision(const char *url)
+bool check_url_collision(const char *method, const char *url)
 {
   for(int i = 0; i < nMappings; i++)
   {
     if(regexec(&handlerMappings[i]->regex, url, 0, NULL, 0) == 0)
     {
-      return true;
+      // Assumed to be any method when null
+      if(handlerMappings[i]->method == NULL)
+      {
+        return true;
+      } else if(strcmp(handlerMappings[i]->method, method))
+      {
+        return true;
+      }
     }
   }
 
