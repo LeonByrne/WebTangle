@@ -213,8 +213,20 @@ void response_add_header(HttpResponse *this, const char *name, const char *value
  */
 char *response_to_message(HttpResponse *this, const int contentLength, const char *contentType, int *size)
 {
+  // TODO redo this whole thing
+  for(int i = 0; i < this->nHeaders; i++)
+  {
+    if(this->headers[i]->length != strlen(this->headers[i]->name) + strlen(": ") + strlen(this->headers[i]->value) + strlen("\r\n"))
+    {
+      printf("%s doesn't have the right length.", this->headers[i]->name);
+    }
+  }
+
+  printf("headers: %d, headers total size: %d\n", this->nHeaders, this->headerSize);
+
   // The extra 256 bytes is good enough for now and probaly forever.
-  char *msg = malloc(256 + this->headerSize);
+  int bufferSize = 256 + this->headerSize;
+  char *msg = malloc(bufferSize);
   if(msg == NULL)
   {
     return NULL;
@@ -225,8 +237,8 @@ char *response_to_message(HttpResponse *this, const int contentLength, const cha
   if(contentType == NULL)
   {
     // No contentType
-    len = snprintf(msg, 256 + this->headerSize,
-      "HTTP/1.2 %d %s\r\nContent-Length: %d\r\n",
+    len = snprintf(msg, bufferSize,
+      "HTTP/1.1 %d %s\r\nContent-Length: %d\r\n",
       this->statusCode,
       status_str(this->statusCode),
       contentLength
@@ -234,8 +246,8 @@ char *response_to_message(HttpResponse *this, const int contentLength, const cha
   } else
   {
     // Has a contentType
-    len = snprintf(msg, 256 + this->headerSize,
-      "HTTP/1.2 %d %s\r\nContent-Length: %d\r\nContent-Type: %s\r\n",
+    len = snprintf(msg, bufferSize,
+      "HTTP/1.1 %d %s\r\nContent-Length: %d\r\nContent-Type: %s\r\n",
       this->statusCode,
       status_str(this->statusCode),
       contentLength,
@@ -243,28 +255,39 @@ char *response_to_message(HttpResponse *this, const int contentLength, const cha
     );
   }
 
-  // Copy each header
+  // The buffer size decreases as it is used up
+  bufferSize -= len;
+
+  // Get the start of the headers and then copy them one by one
   char *headerStart = msg + len;
   for(int i = 0; i < this->nHeaders; i++)
   {
-    snprintf(headerStart, this->headers[i]->length,
+    int headerLen = snprintf(headerStart, bufferSize,
       "%s: %s\r\n",
       this->headers[i]->name,
       this->headers[i]->value
     );
 
-    headerStart += this->headers[i]->length;
+    headerStart += headerLen;
+    bufferSize -= headerLen;
   }
 
-  // Copy in the last bit to go before the body
-  strcpy(headerStart, "\r\n");
+  // We need to add the line break in the response
+  int breakLen = snprintf(headerStart, bufferSize,
+    "\r\n"
+  );
+  bufferSize -= breakLen;
 
+  // If we rean out of buffer space we pretend we didn't. Should not happen.
+  if(bufferSize < 0)
+  {
+    bufferSize = 0;
+  }
+
+  // If the size is NULL we don't try to write to it
   if(size != NULL)
   {
-    *size = (headerStart - msg) + strlen("\r\n");
-
-    printf("msg size: %d\n", *size);
-    printf("msg: %s\n", msg);
+    *size = (256 + this->headerSize) - bufferSize;
   }
 
   return msg;
@@ -280,10 +303,16 @@ char *response_to_message(HttpResponse *this, const int contentLength, const cha
  */
 int send_repsonse(HttpResponse *this, const int contentLength, const char *contentType)
 {
+  // Get the response as a string and it's length
   int length;
   char *msg = response_to_message(this, contentLength, contentType, &length);
+  
+  // Send the string
   int result = send(this->dest_fd, msg, length, 0);
+
+  // Free the string
   free(msg);
 
+  // Return the bytes sent
   return result;
 }
