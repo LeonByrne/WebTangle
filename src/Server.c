@@ -174,13 +174,20 @@ int WT_shutdown()
   return 0;
 }
 
+/**
+ * @brief Adds a mapping from a url to a function
+ * 
+ * @param method 
+ * @param url 
+ * @param handler 
+ * @return int    0 on success, -1 if no mapping could not be made, -2 if url already in use
+ */
 int WT_add_mapping(const char *method, const char *url, void (*handler)(HttpRequest *))
 {
-  // TODO Choose failure codes later
-
   // Create mapping
   HandlerMapping *mapping = create_handler_mapping(method, url, handler);
 
+  // Check if mapping creation worked
   if(mapping == NULL)
   {
     return -1;
@@ -194,7 +201,7 @@ int WT_add_mapping(const char *method, const char *url, void (*handler)(HttpRequ
     snprintf(error, sizeof(error), "Could not add mapping for: %s\n\tMapping for this url already exists.\n", url);
     WT_log_error(error);
     
-    return -1;
+    return -2;
   }
 
   // Else add it
