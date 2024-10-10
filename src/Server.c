@@ -402,7 +402,7 @@ void * worker_thread(void *)
     bool matchFound = false;
     for(int i = 0 ; i < nPages; i++)
     {
-      if(regexec(&pageMappings[i]->regex, request->url, 0, NULL, 0) == 0 && strcmp(request->method, "GET"))
+      if(regexec(&pageMappings[i]->regex, request->url, 0, NULL, 0) == 0 && strcmp(request->method, "GET") == 0)
       {
         // TODO could be const, some others too
         HttpResponse *response = create_response(request->client_fd, 200);
@@ -425,7 +425,7 @@ void * worker_thread(void *)
 
     for(int i = 0 ; i < nResources; i++)
     {
-      if(strcmp(resourceMappings[i]->url, request->url) == 0 && strcmp(request->method, "GET"))
+      if(strcmp(resourceMappings[i]->url, request->url) == 0 && strcmp(request->method, "GET") == 0)
       {
         HttpResponse *response = create_response(request->client_fd, 200);
 
@@ -450,7 +450,7 @@ void * worker_thread(void *)
       if(regexec(&handlerMappings[i]->regex, request->url, 0, NULL, 0) == 0)
       {
         // If the methods are different
-        if(handlerMappings[i]->method == NULL || strcmp(handlerMappings[i]->method, request->method))
+        if(handlerMappings[i]->method == NULL || strcmp(handlerMappings[i]->method, request->method) == 0)
         {
 
           handlerMappings[i]->handler(request);
